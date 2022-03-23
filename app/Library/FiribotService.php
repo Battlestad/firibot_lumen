@@ -33,6 +33,7 @@ class FiribotService {
             'markets' => $url.$v.'/markets/'.$market,
             'markets_history' => $url.$v.'/markets/'.$market.'/history',
             'markets_ticker' => $url.$v.'/markets/'.$market.'/ticker',
+            'markets_tickers' => $url.$v.'/markets/tickers',
             'orders' => $url.$v.'/orders',
         ];
 
@@ -88,8 +89,12 @@ class FiribotService {
         return $this->request('GET', $this->endpoints('markets_history', $market));
     }
 
-    public function getMarketsTicker($market=null) {
+    public function getMarketsTicker($market) {
         return $this->request('GET', $this->endpoints('markets_ticker', $market));
+    }
+
+    public function getMarketsTickers() {
+        return $this->request('GET', $this->endpoints('markets_tickers'));
     }
     
     //  Example:
@@ -110,27 +115,14 @@ class FiribotService {
 
 //         if ($prevPrice <> $curPrice) {
 //             $percentageDiff = (($curPrice - $prevPrice) / $curPrice) * 100;
-// dump($percentageDiff);
 //             if ($type == "ask" && $percentageDiff > 0 || $type == "bid" && $percentageDiff < 0) {
 // // TODO: calc amount from funds?
 //                 $amount = (abs($percentageDiff) * $funds) / 100;
-// dump($amount);
+
 //                 if ($amount < 11) {
 //                     $amount = (abs($percentageDiff) * $funds) / 100;
 //                 }
-// dd($amount);
-// // $amount = 11;
 
-
-// dump(
-//     [
-//         'prevPrice' => $prevPrice,
-//         'curPrice' => $curPrice,
-//         'percentage_diff' => $percentageDiff,
-//         'my_amount' => $amount,
-//         'funds' => $funds,
-//     ]
-// );
 
 //                 $body = [
 //                     'market' => "BTCNOK",
@@ -139,8 +131,6 @@ class FiribotService {
 //                     'amount' => number_format((1/$curPrice) * $amount,6),// how much crypto to buy for given amount
 //                 ];
 
-// dump($body);
-//                 // return $body;
 
 //                 // if ($amount >= $this->minAmount) {
 //                     // return FiriBotService::order($body);
