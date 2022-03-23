@@ -24,6 +24,12 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        // $schedule->command("firibot:execute")->everyMinute();
+        // TODO. run commands in a loop through getMarkets in FiribotService?
+        $schedule->command("firibot:execute BTCNOK")->everyMinute()->runInBackGround();
+        $schedule->command("firibot:execute ETHNOK")->everyMinute()->runInBackGround();
+        $schedule->command("firibot:execute XRPNOK")->everyMinute()->runInBackGround();
+        $schedule->command("firibot:execute ADANOK")->everyMinute()->runInBackGround();
+        $schedule->command("firibot:execute LTCNOK")->everyMinute()->runInBackGround();
+        $schedule->command("firibot:execute DAINOK")->everyMinute()->runInBackGround();
     }
 }
