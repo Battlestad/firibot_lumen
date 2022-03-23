@@ -13,7 +13,7 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::create('market_price_history', function (Blueprint $table) {
+        Schema::create('market_prices', function (Blueprint $table) {
             $table->id();
             $table->string('market',10);
             $table->float('bid_price');
@@ -29,6 +29,6 @@ return new class extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('market_price_history');
+        Schema::dropIfExists('market_prices');
     }
 };
