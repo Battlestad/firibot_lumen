@@ -13,7 +13,8 @@ class Kernel extends ConsoleKernel
      * @var array
      */
     protected $commands = [
-        Commands\FiriBot::class,
+        // Commands\FiriBot::class,
+        Commands\FiribotPrices::class,
     ];
 
     /**
@@ -24,12 +25,15 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        // TODO. run commands in a loop through getMarkets in FiribotService?
-        $schedule->command("firibot:execute BTCNOK")->everyMinute()->runInBackGround();
-        $schedule->command("firibot:execute ETHNOK")->everyMinute()->runInBackGround();
-        $schedule->command("firibot:execute XRPNOK")->everyMinute()->runInBackGround();
-        $schedule->command("firibot:execute ADANOK")->everyMinute()->runInBackGround();
-        $schedule->command("firibot:execute LTCNOK")->everyMinute()->runInBackGround();
-        $schedule->command("firibot:execute DAINOK")->everyMinute()->runInBackGround();
+        $schedule->command("firibot:fetchprices")->everyMinute()->runInBackGround();
+
+        // $schedule->command("firibot:execute BTCNOK")->everyMinute()->runInBackGround();
+        // $schedule->command("firibot:execute ETHNOK")->everyMinute()->runInBackGround();
+        // $schedule->command("firibot:execute XRPNOK")->everyMinute()->runInBackGround();
+        // $schedule->command("firibot:execute ADANOK")->everyMinute()->runInBackGround();
+        // $schedule->command("firibot:execute LTCNOK")->everyMinute()->runInBackGround();
+        // $schedule->command("firibot:execute DAINOK")->everyMinute()->runInBackGround();
+
+        // $schedule->command("firibot:execute TEST 1")->everyMinute()->runInBackGround();
     }
 }

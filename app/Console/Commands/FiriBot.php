@@ -7,7 +7,7 @@ use App\Library\FiribotService;
 use App\Models\MarketPrice;
 use Carbon\Carbon;
 
-class firibot extends Command
+class FiriBot extends Command
 {
     /**
      * The name and signature of the console command.
@@ -42,17 +42,38 @@ class firibot extends Command
         $firibot = new FiribotService();
 
         $currentPriceData = $firibot->getMarketsTicker($market);
-        
-        $marketPrice = MarketPrice::create([
-            'market'=>$market,
-            'bid_price'=>$currentPriceData->bid,
-            'ask_price'=>$currentPriceData->ask,
-        ]);
 
-        $this->log("Inserted new market prices:");
-        $this->log($marketPrice);
+        $priceDatahistory = MarketPrice::
+            where('market', $market)
+            ->where('created_at', '>=', Carbon::now()->subHours(24))
+            ->get();
+        
+        $lastPrice = $priceDatahistory->last();
+
+        // if this price is the same as last stored price, remove last price before calculating avg
+        if ($lastPrice->bid_price == $currentPriceData->bid && $lastPrice->ask_price == $currentPriceData->ask) {
+            $lastPrice = $priceDatahistory->pop();
+        }
+
+        $avgAskPrice = $priceDatahistory->avg('ask_price');
+
+        dd($lastPrice);
+
+            
+        foreach($priceDatahistory as $price) {
+            // dump($price->bid_price." ".$price->created_at);
+            dump(floatval($price->bid_price));
+        }
+        dump("___")   ;
+        dump($priceDatahistory->avg('bid_price'));
+        dd($priceDatahistory->median('bid_price'));
+
+
+        dd();
+
 
         $trades = $firibot->getTrades($market);
+        // dd($trades);
 
         $lastTrade = $trades->shift();
         if (!$lastTrade) {
@@ -114,29 +135,36 @@ class firibot extends Command
             $lastTrade->price = $lastTrade->price / (count($tradesToMerge) + 1);
         }
 
-        $feeIncVal = 1 + $firibot->getFee();
-        
+        // dd($lastTrade);
+
         $previousCost = 0;
         $nextCost = 0;
         $diffAmount = 0;
         $diffPercentage = 0;
-
+        $earnedAmount = 0;
+        $earnedPercentage = 0;
+        
         $orderData = [
             'market' => $market,
             'type' => "",
             'price' => 0,
-            'amount' => $lastTrade->amount,
+            'amount' => 0,
         ];
-
+        
         $this->log("Prev type: ".$lastTrade->side);
         $this->log("Prev price: ".$lastTrade->price);
+        
+        $fee = 1 + $firibot->getFee();
 
         if ($lastTrade->side == "bid") {// if lastTrade was buy, sell
             $previousCost = $lastTrade->cost;
-            $nextCost = ($lastTrade->amount * $currentPriceData->bid) * $feeIncVal;
+            $nextCost = ($lastTrade->amount * $currentPriceData->bid) * $fee;
             
             $diffAmount = $nextCost - $previousCost;
-            $diffPercentage = (($nextCost - $previousCost) / $nextCost) * 100;
+            $diffPercentage = (($diffAmount) / $nextCost) * 100;
+
+            $earnedAmount = $diffAmount / $fee;
+            $earnedPercentage = $diffPercentage / $fee;
 
             $this->log("Next price: ".$currentPriceData->bid);
 
@@ -144,13 +172,17 @@ class firibot extends Command
             if ($nextCost > $previousCost) {
                 $orderData['type'] = "ask";
                 $orderData['price'] = $currentPriceData->bid;
+                $orderData['amount'] = $lastTrade->amount / $fee;// when selling, fee must be excluded in the crypto amount. Otherwise there may not be enough funds available for the firi fee
             }
         } elseif ($lastTrade->side == "ask") {// if lastTrade was sale, buy
-            $previousCost = ($lastTrade->amount * $lastTrade->price) / $feeIncVal;
-            $nextCost = ($lastTrade->amount * $currentPriceData->ask) * $feeIncVal;
+            $previousCost = ($lastTrade->amount * $lastTrade->price) / $fee;
+            $nextCost = ($lastTrade->amount * $currentPriceData->ask) * $fee;// how much we must sell for must include fee since it will be withdrawn after sale is done
 
             $diffAmount = $previousCost - $nextCost;
-            $diffPercentage = (($previousCost - $nextCost) / $previousCost) * 100;
+            $diffPercentage = (($diffAmount) / $previousCost) * 100;
+
+            $earnedAmount = $diffAmount;
+            $earnedPercentage = $diffPercentage;
 
             $this->log("Next price: ".$currentPriceData->ask);
             
@@ -158,22 +190,34 @@ class firibot extends Command
             if ($nextCost < $previousCost) {
                 $orderData['type'] = "bid";
                 $orderData['price'] = $currentPriceData->ask;
+                $orderData['amount'] = $lastTrade->amount * $fee;// since last sale was amount - fee, we dont want to buy less than original crypto amount
             }
         }
         
+        $test = 0.01147522 / $fee;
+
+        $this->log("Test trade amount: ".$test);
+        $this->log("Last trade amount: ".$lastTrade->amount);
+        $this->log("This trade amount: ".$lastTrade->amount * $fee);
         $this->log("Prev cost: ".$previousCost);
         $this->log("Next cost: ".$nextCost);
-        $this->log("Potential earned amount: ".$diffAmount);
-        $this->log("Potential earned percentage: ".$diffPercentage);
+        
+        $this->log("Potential order amount: ".$diffAmount);
+        $this->log("Potential order percentage: ".$diffPercentage);
+
+        $this->log("Potential earned amount: ".$earnedAmount);
+        $this->log("Potential earned percentage: ".$earnedPercentage);
+
 
         // $orderData['type'] = "bid";
         // $orderData['price'] = $currentPriceData->ask;
         
-        if ($orderData['type'] != "" && $orderData['price'] != 0 && $diffPercentage >= 1.5) {
+        if ($orderData['type'] != "" && $orderData['price'] > 0 && $orderData['amount'] > 0 && $diffPercentage >= 1.5) {
             $this->log("Initiating new ".$orderData['type']." order");
             $this->log("Order_data:");
-            $this->log($orderData);
-            $firibot->order($orderData);
+            $this->log(json_encode($orderData));
+            // $res = $firibot->order($orderData);
+            // dump($res);
         } else {
             $this->log("No order was made");
         }
