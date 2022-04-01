@@ -7,7 +7,7 @@ use App\Library\FiribotService;
 use App\Models\MarketPrice;
 use Carbon\Carbon;
 
-class FiriBot extends Command
+class Firibot extends Command
 {
     /**
      * The name and signature of the console command.
