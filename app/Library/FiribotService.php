@@ -25,16 +25,15 @@ class FiribotService {
 
     private function endpoints($key=null, $market=null) {
 
-        $url = config('custom.firi.url');
-        $v = "v2";
+        $url = config('custom.firi.url')."v2";
         $endpoints = [
-            'balances' => $url.$v.'/balances',
-            'trades' => $url.$v.'/history/trades',
-            'markets' => $url.$v.'/markets/'.$market,
-            'markets_history' => $url.$v.'/markets/'.$market.'/history',
-            'markets_ticker' => $url.$v.'/markets/'.$market.'/ticker',
-            'markets_tickers' => $url.$v.'/markets/tickers',
-            'orders' => $url.$v.'/orders',
+            'balances' => $url.'/balances',
+            'trades' => $url.'/history/trades',
+            'markets' => $url.'/markets/'.$market,
+            'markets_history' => $url.'/markets/'.$market.'/history',
+            'markets_ticker' => $url.'/markets/'.$market.'/ticker',
+            'markets_tickers' => $url.'/markets/tickers',
+            'orders' => $url.'/orders',
         ];
 
         //Value if key exist or entire array if not
