@@ -49,8 +49,8 @@ class FiribotService {
             $res = $this->client->request($method, $url, $params);
             return json_decode($res->getBody());
         } catch (RequestException $ex) {
-            $res = $ex->getres();
-            if ($res) Log::error($response->getBody());
+            $res = $ex->getResponse();
+            if ($res) Log::error($res->getBody());
             return false;
         } catch (GuzzleException $ex) {
             Log::error($ex);
