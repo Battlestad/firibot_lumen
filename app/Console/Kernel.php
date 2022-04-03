@@ -15,6 +15,7 @@ class Kernel extends ConsoleKernel
     protected $commands = [
         Commands\Firibot::class,
         Commands\FiribotPrices::class,
+        Commands\FiribotOrders::class,
     ];
 
     /**
@@ -25,14 +26,16 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        // $schedule->command("firibot:fetchprices");
-/*
-        $schedule->command("firibot:execute BTCNOK")->everyMinute()->runInBackGround();
-        $schedule->command("firibot:execute ETHNOK")->everyMinute()->runInBackGround();
-        $schedule->command("firibot:execute XRPNOK")->everyMinute()->runInBackGround();
-        $schedule->command("firibot:execute ADANOK")->everyMinute()->runInBackGround();
-        $schedule->command("firibot:execute LTCNOK")->everyMinute()->runInBackGround();
-        $schedule->command("firibot:execute DAINOK")->everyMinute()->runInBackGround();
-*/
+        $schedule->command("firibot:fetchprices")->environments(['production']);
+
+        $schedule->command("firibot:execute BTCNOK 100")->everyMinute()->runInBackGround()->environments(['production']);
+        $schedule->command("firibot:execute ETHNOK 100")->everyMinute()->runInBackGround()->environments(['production']);
+        $schedule->command("firibot:execute XRPNOK 100")->everyMinute()->runInBackGround()->environments(['production']);
+        $schedule->command("firibot:execute ADANOK 100")->everyMinute()->runInBackGround()->environments(['production']);
+        $schedule->command("firibot:execute LTCNOK 100")->everyMinute()->runInBackGround()->environments(['production']);
+        $schedule->command("firibot:execute DAINOK 100")->everyMinute()->runInBackGround()->environments(['production']);
+
+        $schedule->command("firibot:orders")->environments(['production']);
+
     }
 }

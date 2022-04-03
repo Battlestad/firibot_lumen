@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use App\Library\FiribotService;
 use App\Models\MarketPrice;
+use App\Models\Order;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 
@@ -45,21 +46,33 @@ class Firibot extends Command
         $firibot = new FiribotService();
 
         // check if sale-order id was cached in previous run (it means it was unsuccessful and we need to try again)
-        $prevSaleOrderId = Cache::get($market."_prev_sale_order_status");
+        $prevBuyOrderId = Cache::get($market."_prev_buy_order_id");
+        $prevSaleOrderStatus = Cache::get($market."_prev_sale_order_status");
         $prevSaleOrderData = Cache::get($market."prev_sale_order_data");
 
-        // try again
-        if ($prevSaleOrderId && $prevSaleOrderId == "failed") {
+        
+        // try again, in case sale-order failed in previous run
+        if ($prevSaleOrderStatus && $prevSaleOrderStatus == "failed") {
             $this->log("Retrying sale-order...");
-
+            
             $res = $firibot->order($prevSaleOrderData);
             
             if ($res && $res->id) {
                 $this->log("Retry order-id: ".$res->id);
-
+                $this->log(json_encode($prevSaleOrderData));
                 // update cache variable if retry sale-order was successful
                 Cache::put($market."_prev_sale_order_status", "success");// if this is stored in cache, it means sale-order was successful
                 Cache::forget($market."prev_sale_order_data");
+                
+                $prevSaleAmount = $prevSaleOrderData['amount'] * $prevSaleOrderData['price'];
+                $prevEarnedAmount = $saleAmount - $amount;
+                
+                $preBuyOrder = Order::where('firi_id', $prevBuyOrderId)->where('status')->first();
+
+                $preBuyOrder->firi_sale_id = $res->id;
+                $preBuyOrder->sale_amount = $prevSaleAmount;
+                $preBuyOrder->earned_amount = $prevEarnedAmount;
+                $preBuyOrder->save();
 
                 $this->log("Retry sale-order was successful. Exiting...");
                 return;
@@ -87,7 +100,7 @@ class Firibot extends Command
             return;
         }
 
-        // if no active orders are found, check if we are going to perform a new buy-order (we're placing pending sell order immediately after a buy order)
+        // if no active orders are found, check if we are going to perform a new buy-order (we're placing pending sale order immediately after a buy order)
             
         // calc average prices from the last 24 hours
         $priceDatahistory = MarketPrice::
@@ -111,51 +124,74 @@ class Firibot extends Command
         $this->log("Cur price: ".$curPrice);
 
         $priceDiff = (($avgPrice - $curPrice) / $avgPrice) * 100;
-        $this->log(json_encode("Price diff: ".$priceDiff));
+        $this->log("Price diff: ".$priceDiff);
 
         // if price has decreased more than x% compared to the average price in the last 24 hours, BUY
-        if ($priceDiff > 1.5) {
+        if ($priceDiff > 1.5) { // TODO. add dynamic percentage based on coin volatility?
 
             $fee = 1.005;// Firi fee is 0.5%
             $cryptoAmount = (1/$curPrice) * ($amount / $fee);
 
-            $orderData = [
+            $buyOrderData = [
                 'market' => $market,
                 'type' => "bid",
                 'price' => $curPrice * 1.001,// increase the price a bit to make sure order goes through
                 'amount' => number_format($cryptoAmount,6),// firi is taking its fee from the local currency when buying
             ];
             $this->log("Initializing buy-order:");
-            $this->log(json_encode($orderData));
-            $res = $firibot->order($orderData);
-            $this->log("Order-id: ".$res->id);
+            $this->log(json_encode($buyOrderData));
             
-            // wait for buy-order to go through before initiating sell-order
-            sleep(5);
-
-            // placing pending sell-order immediately with the price I wanna sell for
-            $orderData = [
-                'market' => $market,
-                'type' => "ask",
-                'price' => $curPrice * 1.03,// only selling when price has increased 3% from when I bought
-                'amount' => number_format($cryptoAmount / $fee,6), // firi is taking its fee from the crypto currency when selling
-            ];
-            Cache::put($market."prev_sale_order_data", $orderData);// store in cache in case sale-order is unsuccessful, use this to try again in the beginning of next run
-            Cache::put($market."_prev_sale_order_status", "failed");// init value is always set to fail
-
-            $this->log("Initializing sell-order:");
-            $this->log(json_encode($orderData));
-
-            $res = $firibot->order($orderData);
+            $res = $firibot->order($buyOrderData);
             if ($res && $res->id) {
                 $this->log("Order-id: ".$res->id);
-                Cache::put($market."_prev_sale_order_status", "success");// marking 
-            }
-            
-            $sellAmount = $orderData['amount'] * $orderData['price'];
+                
+                Cache::put($market."_prev_buy_order_id", $res->id);
 
-            $this->log("Potential sell amount: ". $sellAmount." NOK");
-            $this->log("Potential earned amount: ". $sellAmount - $amount. "NOK");
+                $buyOrder = New Order();
+                $buyOrder->firi_id = $res->id;
+                $buyOrder->market = $buyOrderData['market'];
+                $buyOrder->type = $buyOrderData['type'];
+                $buyOrder->price = $buyOrderData['price'];
+                $buyOrder->amount = $buyOrderData['amount'];
+                $buyOrder->save();
+
+                // wait for buy-order to go through before initiating sale-order
+                sleep(5);
+
+                // placing pending sale-order immediately with the price I wanna sale for
+                $saleOrderData = [
+                    'market' => $market,
+                    'type' => "ask",
+                    'price' => $curPrice * 1.03,// only selling when price has increased 3% from when I bought. TODO. make dynamic linked with $priceDiff limit?
+                    'amount' => number_format($cryptoAmount / $fee,6), // firi is taking its fee from the crypto currency when selling
+                ];
+                Cache::put($market."prev_sale_order_data", $saleOrderData);// store in cache in case sale-order is unsuccessful, use this to try again in the beginning of next run
+                Cache::put($market."_prev_sale_order_status", "failed");// init value is always set to fail
+
+                $this->log("Initializing sale-order:");
+                $this->log(json_encode($saleOrderData));
+
+                $res = $firibot->order($saleOrderData);
+
+                $saleAmount = $saleOrderData['amount'] * $saleOrderData['price'];
+                $earnedAmount = $saleAmount - $amount;
+
+                $this->log("Potential sale amount: ". $saleAmount." NOK");
+                $this->log("Potential earned amount: ". $earnedAmount. "NOK");
+
+                if ($res && $res->id) {
+                    $this->log("Order-id: ".$res->id);
+                    Cache::put($market."_prev_sale_order_status", "success");
+
+                    $buyOrder->firi_sale_id = $res->id;
+                    $buyOrder->sale_amount = $saleAmount;
+                    $buyOrder->earned_amount = $earnedAmount;
+                    $buyOrder->save();
+                }
+                
+            } else {
+                $this->log("Buy order failed...");
+            }
         }
 
         

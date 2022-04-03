@@ -31,6 +31,7 @@ class FiribotService {
             'markets_history' => $url.'/markets/'.$market.'/history',
             'markets_ticker' => $url.'/markets/'.$market.'/ticker',
             'markets_tickers' => $url.'/markets/tickers',
+            'order' => $url.'/order',
             'orders' => $url.'/orders',
         ];
 
@@ -72,6 +73,10 @@ class FiribotService {
             $trades = $trades->whereIn('market', $market);
         }
         return $trades;
+    }
+
+    public function getOrder($orderId) {
+        return $this->request('GET', $this->endpoints('order')."/".$orderId, $this->headers);
     }
 
     public function getOrders($market=null) {
