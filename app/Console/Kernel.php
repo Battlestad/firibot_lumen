@@ -26,16 +26,16 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        $schedule->command("firibot:fetchprices")->environments(['production']);
-
+        $schedule->command("firibot:fetchprices")->everyMinute()->environments(['production']);
+        
         $schedule->command("firibot:execute BTCNOK 100")->everyMinute()->runInBackGround()->environments(['production']);
         $schedule->command("firibot:execute ETHNOK 100")->everyMinute()->runInBackGround()->environments(['production']);
         $schedule->command("firibot:execute XRPNOK 100")->everyMinute()->runInBackGround()->environments(['production']);
         $schedule->command("firibot:execute ADANOK 100")->everyMinute()->runInBackGround()->environments(['production']);
         $schedule->command("firibot:execute LTCNOK 100")->everyMinute()->runInBackGround()->environments(['production']);
         $schedule->command("firibot:execute DAINOK 100")->everyMinute()->runInBackGround()->environments(['production']);
-
-        $schedule->command("firibot:orders")->environments(['production']);
-
+        
+        $schedule->command("firibot:orders")->hourly()->environments(['production']);
+        
     }
 }
