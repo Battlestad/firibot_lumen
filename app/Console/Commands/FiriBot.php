@@ -6,6 +6,7 @@ use Illuminate\Console\Command;
 use App\Library\FiribotService;
 use App\Models\MarketPrice;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 
 class Firibot extends Command
 {
@@ -14,7 +15,7 @@ class Firibot extends Command
      *
      * @var string
      */
-    protected $signature = 'firibot:execute {marketNok} {amountNok}';
+    protected $signature = 'firibot:execute {marketNOK} {amountNOK}';
 
     /**
      * The console command description.
@@ -24,7 +25,7 @@ class Firibot extends Command
     protected $description = 'Bot for making great earnings... all of the time.. for meeeeeeee';
 
     private function log($text) {
-        $text = $this->argument('marketNok').": ".$text;
+        $text = $this->argument('marketNOK').": ".$text;
         \Log::info($text);
         $this->line($text);
     }
@@ -36,12 +37,37 @@ class Firibot extends Command
      */
     public function handle()
     {
-        $market = $this->argument('marketNok');
-        $amount = $this->argument('amountNok');// how much NOK is the bot allowed to trade for
+        $market = $this->argument('marketNOK');
+        $amount = $this->argument('amountNOK');// how much NOK is the bot allowed to trade for
 
         $this->log("________________________________");
         $this->log("Started bot for market: ".$market);
         $firibot = new FiribotService();
+
+        // check if sale-order id was cached in previous run (it means it was unsuccessful and we need to try again)
+        $prevSaleOrderId = Cache::get($market."_prev_sale_order_status");
+        $prevSaleOrderData = Cache::get($market."prev_sale_order_data");
+
+        // try again
+        if ($prevSaleOrderId && $prevSaleOrderId == "failed") {
+            $this->log("Retrying sale-order...");
+
+            $res = $firibot->order($prevSaleOrderData);
+            
+            if ($res && $res->id) {
+                $this->log("Retry order-id: ".$res->id);
+
+                // update cache variable if retry sale-order was successful
+                Cache::put($market."_prev_sale_order_status", "success");// if this is stored in cache, it means sale-order was successful
+                Cache::forget($market."prev_sale_order_data");
+
+                $this->log("Retry sale-order was successful. Exiting...");
+                return;
+            } else {
+                $this->log("Retry sale-order was unsuccessful. Retrying next run.. Exiting...");
+                return;
+            }
+        }
 
         $balance = $firibot->getBalances("NOK")->available;
         if ($balance < $amount) {
@@ -57,7 +83,7 @@ class Firibot extends Command
             foreach($orders as $order) {
                 $this->log("Order: ".$order->id);
             }
-            $this->log("exiting...");
+            $this->log("Exiting...");
             return;
         }
 
@@ -81,12 +107,11 @@ class Firibot extends Command
         $avgPrice = $priceDatahistory->avg('ask_price');
         $curPrice = $currentPriceData->ask;
 
-        $this->log("avg price: ".$avgPrice);
-        $this->log("cur price: ".$curPrice);
+        $this->log("Avg price: ".$avgPrice);
+        $this->log("Cur price: ".$curPrice);
 
         $priceDiff = (($avgPrice - $curPrice) / $avgPrice) * 100;
         $this->log(json_encode("Price diff: ".$priceDiff));
-
 
         // if price has decreased more than x% compared to the average price in the last 24 hours, BUY
         if ($priceDiff > 1.5) {
@@ -106,10 +131,7 @@ class Firibot extends Command
             $this->log("Order-id: ".$res->id);
             
             // wait for buy-order to go through before initiating sell-order
-            sleep(3);
-
-            // TODO. Check if buy-order was found (getTrades) before initiating sell-order (cannot initiate sell-order until there is enough crypto currency in account)
-            // TODO. What to do if sell-order fails? How to keep bot from buying more?
+            sleep(5);
 
             // placing pending sell-order immediately with the price I wanna sell for
             $orderData = [
@@ -118,12 +140,18 @@ class Firibot extends Command
                 'price' => $curPrice * 1.03,// only selling when price has increased 3% from when I bought
                 'amount' => number_format($cryptoAmount / $fee,6), // firi is taking its fee from the crypto currency when selling
             ];
+            Cache::put($market."prev_sale_order_data", $orderData);// store in cache in case sale-order is unsuccessful, use this to try again in the beginning of next run
+            Cache::put($market."_prev_sale_order_status", "failed");// init value is always set to fail
 
             $this->log("Initializing sell-order:");
             $this->log(json_encode($orderData));
-            $res = $firibot->order($orderData);
-            $this->log("Order-id: ".$res->id);
 
+            $res = $firibot->order($orderData);
+            if ($res && $res->id) {
+                $this->log("Order-id: ".$res->id);
+                Cache::put($market."_prev_sale_order_status", "success");// marking 
+            }
+            
             $sellAmount = $orderData['amount'] * $orderData['price'];
 
             $this->log("Potential sell amount: ". $sellAmount." NOK");
