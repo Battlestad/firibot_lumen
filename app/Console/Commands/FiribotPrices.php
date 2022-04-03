@@ -44,6 +44,7 @@ class FiribotPrices extends Command
      */
     public function handle()
     {
+        $this->log("Fetching marketprices");
         $firibot = new FiribotService();
 
         foreach($firibot->getMarketsTickers() as $market) {
@@ -53,7 +54,7 @@ class FiribotPrices extends Command
                 'ask_price'=>$market->ask,
             ]);
 
-            $this->log("Inserted new marketprice for ".$market->market." bid:".$market->bid." ask:".$market->ask);
+            $this->log($market->market." bid:".$market->bid." ask:".$market->ask);
         }
 
     }

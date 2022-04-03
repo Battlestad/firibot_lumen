@@ -12,8 +12,6 @@ class FiribotService {
     private $headers = [];
 
     // private $currency = "";// TODO add currency when creating object
-    private $fee = 0.005;// Firi fee
-    private $minPercentage = 1;// Minimum percentage difference in amount when buying/selling
 
     public function __construct() {
         $this->headers = [
@@ -60,10 +58,6 @@ class FiribotService {
         }
     }
 
-    public function getFee() {
-        return $this->fee;
-    }
-
     public function getBalances($currency=null) {
         $balances = collect($this->request('GET', $this->endpoints('balances'), $this->headers));
         if ($currency) {
@@ -79,7 +73,15 @@ class FiribotService {
         }
         return $trades;
     }
-    
+
+    public function getOrders($market=null) {
+        $url = $this->endpoints('orders');
+        if ($market) {
+            $url.="/".$market;
+        }
+        return $this->request('GET', $url, $this->headers);
+    }
+
     public function getMarkets($market=null) {
         return $this->request('GET', $this->endpoints('markets', $market));
     }
