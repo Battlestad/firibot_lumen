@@ -13,7 +13,7 @@ class Kernel extends ConsoleKernel
      * @var array
      */
     protected $commands = [
-        Commands\FiriBot::class,
+        Commands\Firibot::class,
         Commands\FiribotPrices::class,
     ];
 
