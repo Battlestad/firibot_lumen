@@ -39,7 +39,7 @@ class Firibot extends Command
     public function handle()
     {
         $market = $this->argument('marketNOK');
-        $amount = $this->argument('amountNOK');// how much NOK is the bot allowed to trade for
+        $amount = $this->argument('amountNOK');// how much NOK the bot is allowed to trade for
 
         $this->log("________________________________");
         $this->log("Started bot for market: ".$market);
@@ -82,15 +82,10 @@ class Firibot extends Command
             }
         }
 
-        $balance = $firibot->getBalances("NOK")->available;
-        if ($balance < $amount) {
-            $this->log("Insufficient funds: ".$balance.". Exiting...");
-            return;
-        }
-
+        
         // if active order already exists on this market, cancel
         $orders = $firibot->getOrders($market);
-
+        
         if ($orders) {
             $this->log("Active orders found: ");
             foreach($orders as $order) {
@@ -99,8 +94,14 @@ class Firibot extends Command
             $this->log("Exiting...");
             return;
         }
-
+        
         // if no active orders are found, check if we are going to perform a new buy-order (we're placing pending sale order immediately after a buy order)
+        
+        $balance = $firibot->getBalances("NOK")->available;
+        if ($balance < $amount) {
+            $this->log("Insufficient funds: ".$balance.". Exiting...");
+            return;
+        }
             
         // calc average prices from the last 24 hours
         $priceDatahistory = MarketPrice::
