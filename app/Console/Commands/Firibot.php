@@ -163,7 +163,7 @@ class Firibot extends Command
                     'market' => $market,
                     'type' => "ask",
                     'price' => $curPrice * 1.03,// only selling when price has increased 3% from when I bought. TODO. make dynamic linked with $priceDiff limit?
-                    'amount' => number_format($cryptoAmount / $fee,6), // firi is taking its fee from the crypto currency when selling
+                    'amount' => number_format(round($cryptoAmount / $fee,8,PHP_ROUND_HALF_DOWN),8), // firi is taking its fee from the crypto currency when selling
                 ];
                 Cache::put($market."prev_sale_order_data", $saleOrderData);// store in cache in case sale-order is unsuccessful, use this to try again in the beginning of next run
                 Cache::put($market."_prev_sale_order_status", "failed");// init value is always set to fail
