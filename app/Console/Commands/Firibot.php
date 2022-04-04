@@ -16,7 +16,7 @@ class Firibot extends Command
      *
      * @var string
      */
-    protected $signature = 'firibot:execute {marketNOK} {amountNOK}';
+    protected $signature = 'firibot:execute {marketNOK} {amountNOK} {priceDiffLimit}';
 
     /**
      * The console command description.
@@ -40,6 +40,7 @@ class Firibot extends Command
     {
         $market = $this->argument('marketNOK');
         $amount = $this->argument('amountNOK');// how much NOK the bot is allowed to trade for
+        $priceDiffLimit = (float)$this->argument('priceDiffLimit');// how much the price must have decreased in % vs average in the past 24 hours before making a buy-order
 
         $this->log("________________________________");
         $this->log("Started bot for market: ".$market);
@@ -82,7 +83,6 @@ class Firibot extends Command
             }
         }
 
-        
         // if active order already exists on this market, cancel
         $orders = $firibot->getOrders($market);
         
@@ -96,7 +96,7 @@ class Firibot extends Command
         }
         
         // if no active orders are found, check if we are going to perform a new buy-order (we're placing pending sale order immediately after a buy order)
-        
+
         $balance = $firibot->getBalances("NOK")->available;
         if ($balance < $amount) {
             $this->log("Insufficient funds: ".$balance.". Exiting...");
@@ -128,7 +128,7 @@ class Firibot extends Command
         $this->log("Price diff: ".$priceDiff);
 
         // if price has decreased more than x% compared to the average price in the last 24 hours, BUY
-        if ($priceDiff > 1.5) { // TODO. add dynamic percentage based on coin volatility?
+        if ($priceDiff > $priceDiffLimit) { // TODO. add dynamic percentage based on coin volatility?
 
             $fee = 1.005;// Firi fee is 0.5%
             $cryptoAmount = (1/$curPrice) * ($amount / $fee);
