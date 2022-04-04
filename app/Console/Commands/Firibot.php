@@ -128,7 +128,7 @@ class Firibot extends Command
         $this->log("Price diff: ".$priceDiff);
 
         // if price has decreased more than x% compared to the average price in the last 24 hours, BUY
-        if ($priceDiff > $priceDiffLimit) { // TODO. add dynamic percentage based on coin volatility?
+        if ($priceDiff > $priceDiffLimit) {
 
             $fee = 1.005;// Firi fee is 0.5%
             $cryptoAmount = (1/$curPrice) * ($amount / $fee);
@@ -163,7 +163,7 @@ class Firibot extends Command
                 $saleOrderData = [
                     'market' => $market,
                     'type' => "ask",
-                    'price' => $curPrice * 1.03,// only selling when price has increased 3% from when I bought. TODO. make dynamic linked with $priceDiff limit?
+                    'price' => $curPrice * ((100 + ($priceDiffLimit * 2)) / 100),// only selling when price has increased $priceDiffLimit*2 from when I bought
                     'amount' => number_format(round($cryptoAmount / $fee,8,PHP_ROUND_HALF_DOWN),8), // firi is taking its fee from the crypto currency when selling
                 ];
                 Cache::put($market."prev_sale_order_data", $saleOrderData);// store in cache in case sale-order is unsuccessful, use this to try again in the beginning of next run
