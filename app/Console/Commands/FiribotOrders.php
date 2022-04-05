@@ -45,8 +45,9 @@ class FiribotOrders extends Command
         ->where('created_at', '>=', Carbon::now()->subDays(60))
         ->get();
 
+        // TODO. use endpoint that fetches all active orders at once?
         foreach($orders as $order) {
-            $firiOrder = $firibot->getorder($order->firi_sale_id);
+            $firiOrder = $firibot->getOrder($order->firi_sale_id);
             if ($firiOrder) {
                 $order->status = "closed";
                 $order->save();
