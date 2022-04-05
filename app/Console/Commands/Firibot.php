@@ -164,7 +164,7 @@ class Firibot extends Command
                     'market' => $market,
                     'type' => "ask",
                     'price' => $curPrice * ((100 + ($priceDiffLimit * 2)) / 100),// only selling when price has increased $priceDiffLimit*2 from when I bought
-                    'amount' => number_format(round($cryptoAmount / $fee,8,PHP_ROUND_HALF_DOWN),8), // firi is taking its fee from the crypto currency when selling
+                    'amount' => number_format(round($cryptoAmount / ($fee+0.005),8,PHP_ROUND_HALF_DOWN),8), // firi is taking its fee from the crypto currency when selling. subtracting additional 0.5% for keeping a bit of crypto for myself
                 ];
                 Cache::put($market."prev_sale_order_data", $saleOrderData);// store in cache in case sale-order is unsuccessful, use this to try again in the beginning of next run
                 Cache::put($market."_prev_sale_order_status", "failed");// init value is always set to fail
